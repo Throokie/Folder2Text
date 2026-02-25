@@ -1,84 +1,182 @@
-# 🚀 AI Context Bundler Pro 📂
+# CodeBundle Pro
 
-> **将庞大的项目源码，瞬间炼化为 AI 易读的“知识丹药”！** 💊
-> 这是一个专为 LLM（Claude/ChatGPT/DeepSeek）设计的上下文整合工具。它能自动遍历目录、过滤杂质、保留精髓，并一键生成包含项目结构的完整文本，甚至还带了全自动的 Git 提交保护！
+智能项目文件整合工具 - 将指定文件夹下的文件内容编排成一个结构化文件。
 
----
+## ✨ 特性
 
-## ✨ 核心超能力 (Superpowers)
+- 🔍 **智能文件扫描** - 支持扩展名、glob 模式、正则表达式、文件大小等多种过滤规则
+- 📝 **多种输出格式** - 支持纯文本、Markdown、JSON 三种格式
+- 🔤 **智能编码检测** - 自动检测文件编码，支持 UTF-8、GBK、Big5 等多种编码
+- ⚡ **并行处理** - 多线程并行读取文件，提升处理速度
+- 📊 **进度显示** - 实时显示处理进度和预计剩余时间
+- ⚙️ **配置管理** - 内置多种预设配置，支持自定义和继承
+- 💻 **双模式** - 支持命令行参数和交互式两种使用方式
 
-* **🎯 精准过滤**：内置针对 `Web`、`Go`、`Rust`、`Python` 等多场景的过滤配置，自动跳过 `node_modules`、`.git` 等“黑洞”目录。
-* **🌳 结构可视化**：自动生成清晰的项目目录树，让 AI 第一时间掌握你的代码版图。
-* **🛡️ Git 自动化保护**：在处理文件夹时，自动执行 `git add .` 和 `git commit`，确保你的代码变动永不丢失。
-* **📦 ZIP 一键解析**：直接投喂压缩包，工具自动解压、分析、清理并输出，不留一丝痕迹。
-* **⌨️ 交互式导航**：像在终端里用文件管理器一样，轻松选取你想要整合的项目路径。
+## 🚀 快速开始
 
----
+### 交互模式
 
-## 🛠️ 快速上手 (Quick Start)
-
-### 1. 准备环境
-
-确保你已安装 Python 3，并将 `aitxt.py` 和 `bundle_configs.json` 放在同一目录下。
-
-### 2. 召唤工具
+直接运行脚本进入交互模式：
 
 ```bash
-python aitxt.py
-
+python run_codebundle.py
 ```
 
-### 3. 操作流程
+### 命令行模式
 
-1. **选择模式**：输入 `1` 处理 ZIP，或输入 `2` 浏览文件夹。
-2. **导航目录**：
-* 输入数字进入子文件夹。
-* 输入 `..` 返回上一级。
-* 输入 `0` 锁定当前目录并开始炼化。
+```bash
+# 打包当前目录
+python run_codebundle.py bundle .
 
+# 打包指定目录，使用指定配置
+python run_codebundle.py bundle ./myproject -p "Python项目" -f markdown
 
-3. **选择配置**：根据项目类型选择预设（如：`Treeledge` 或 `全栈开发`）。
-4. **收货成果**：在当前目录下查看生成的 `xxx_context.txt`！
+# 查看可用配置
+python run_codebundle.py profiles
 
----
+# 扫描目录统计
+python run_codebundle.py scan ./myproject
+```
 
-## ⚙️ 配置文件说明 (`bundle_configs.json`)
+## 📋 内置配置
 
-你可以根据需求定制不同的“炼金配方”：
+| 配置名称 | 描述 |
+|---------|------|
+| 通用/Web开发 | 适用于前端和全栈 Web 项目 |
+| Python项目 | 适用于 Python 项目 |
+| Go项目 | 适用于 Go 语言项目 |
+| Rust项目 | 适用于 Rust 语言项目 |
+| 前端/React | 适用于 React 前端项目 |
+| Java/Kotlin | 适用于 Java/Kotlin 项目 |
+| 最小化 | 只包含核心代码文件 |
+| 完整备份 | 包含所有文本文件 |
 
-| 配置项 | 说明 |
-| --- | --- |
-| `include_extensions` | **白名单**：只收集这些后缀的文件（如 `.ts`, `.py`） |
-| `exclude_extensions` | **黑名单**：绝对不要的文件类型（如 `.png`, `.exe`） |
-| `include_folders` | **重点关注**：在大型项目中指定的源码目录 |
-| `exclude_folders` | **禁区**：自动跳过构建目录和依赖库（如 `dist`, `venv`） |
+## 📁 项目结构
 
----
+```
+codebundle/
+├── __init__.py          # 包入口
+├── __main__.py          # 模块入口
+├── core/                # 核心模块
+│   ├── scanner.py       # 文件扫描器
+│   ├── bundler.py       # 打包器
+│   └── encoder.py       # 编码检测器
+├── formatters/          # 格式化器
+│   ├── base.py          # 基类
+│   ├── text.py          # 纯文本格式
+│   ├── markdown.py      # Markdown 格式
+│   └── json_fmt.py      # JSON 格式
+├── config/              # 配置管理
+│   └── manager.py       # 配置管理器
+├── cli/                 # 命令行接口
+│   ├── commands.py      # CLI 命令
+│   └── interactive.py   # 交互模式
+└── utils/               # 工具模块
+    ├── git_ops.py       # Git 操作
+    └── progress.py      # 进度显示
+```
 
-## 🌈 预设配置预览
+## 🔧 高级用法
 
-| 配置名称 | 适用场景 | 亮点 |
-| --- | --- | --- |
-| **全栈开发/Web/AI** | 通用型项目 | 涵盖了从 C 到 Vue 的几乎所有常见代码后缀 |
-| **KeyboardAutomation** | 自动化脚本/Go/Vue | 针对特定工具链进行了深度优化 |
-| **Treeledge** | Tauri/Rust/Fullstack | 专门处理跨平台框架的复杂目录结构 |
+### 自定义过滤规则
 
----
+```python
+from codebundle import FileScanner, Bundler
+from pathlib import Path
 
-## ⚠️ 注意事项
+# 创建扫描器
+scanner = FileScanner(
+    root_path=Path('./myproject'),
+    include_extensions=['.py', '.js', '.ts'],
+    exclude_extensions=['.min.js'],
+    exclude_folders=['node_modules', '__pycache__'],
+    max_file_size=5 * 1024 * 1024,  # 5MB
+)
 
-* **编码格式**：本工具默认使用 `UTF-8`。遇到非文本或二进制文件，它会自动标识为 `[Binary Content]` 以防崩溃。
-* **Git 身份**：如果你的系统没配置 Git 用户名，它会贴心地使用 `BundleTool` 作为分身帮你提交。
+# 添加 glob 规则
+scanner.add_glob_include('src/**/*.py')
+scanner.add_glob_exclude('**/test_*.py')
 
----
+# 添加正则规则
+scanner.add_regex_exclude(r'.*_generated\.py$')
 
-## 🤝 贡献与反馈
+# 创建打包器并执行
+bundler = Bundler(scanner, Path('output.md'))
+result = bundler.bundle(format='markdown')
 
-如果你觉得好用，记得给个 Star！⭐
-如果有新的过滤配置需求，欢迎随时修改 `bundle_configs.json`。
+print(f"处理了 {result.total_files} 个文件")
+```
 
----
+### 自定义配置档案
 
-**💡 提示：** 整合后的 `.txt` 文件可以直接拖给 AI，并对它说：“这是我的项目上下文，请基于此进行分析...” 🚀
+```python
+from codebundle.config.manager import ConfigManager, ProfileConfig
 
-> 想要我帮你针对某个特定框架（比如 Flutter 或 SpringBoot）新增一套过滤配置吗？请随时告诉我！
+manager = ConfigManager()
+
+# 创建自定义配置
+custom_profile = ProfileConfig(
+    name="我的项目",
+    description="自定义配置",
+    include_extensions=['.py', '.md', '.txt'],
+    exclude_folders=['.git', '__pycache__', 'venv'],
+    max_file_size="2MB",
+)
+
+# 保存配置
+manager.add_profile(custom_profile)
+manager.save()
+```
+
+## 📄 输出示例
+
+### Markdown 格式
+
+```markdown
+# myproject
+
+## 📋 项目信息
+
+| 属性 | 值 |
+|------|-----|
+| 路径 | `/path/to/myproject` |
+| 文件数 | 42 |
+| 总大小 | 156.8 KB |
+
+## 📁 目录结构
+
+```
+myproject/
+├── src/
+│   ├── main.py
+│   └── utils.py
+└── README.md
+```
+
+## 📄 文件内容
+
+### `src/main.py`
+
+> 📊 大小: 2.3 KB | 编码: utf-8 | 行数: 85
+
+```python
+def main():
+    print("Hello, World!")
+```
+```
+
+## 🆚 与原版对比
+
+| 特性 | 原版 | CodeBundle Pro |
+|------|------|----------------|
+| 架构 | 单文件 | 模块化 |
+| 过滤规则 | 仅扩展名 | 扩展名 + glob + 正则 + 大小 |
+| 输出格式 | 纯文本 | 文本 + Markdown + JSON |
+| 编码检测 | 简单 try-catch | 智能检测 + 多编码支持 |
+| 处理方式 | 串行 | 并行 |
+| 进度显示 | 无 | 进度条 + ETA |
+| 配置管理 | JSON 硬编码 | 预设 + 自定义 + 继承 |
+
+## 📜 许可证
+
+MIT License
