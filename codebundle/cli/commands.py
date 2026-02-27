@@ -94,6 +94,11 @@ def create_parser() -> argparse.ArgumentParser:
     bundle_parser.add_argument(
         "--dry-run", action="store_true", help="只显示将要处理的文件，不实际输出"
     )
+    bundle_parser.add_argument(
+        "--line-numbers",
+        action="store_true",
+        help="在输出中添加行号",
+    )
 
     # profiles 命令
     profiles_parser = subparsers.add_parser("profiles", help="列出所有配置档案")
@@ -203,6 +208,7 @@ def cmd_bundle(args: argparse.Namespace) -> int:
         output_path=output_path,
         show_progress=show_progress,
         progress_callback=progress_callback if show_progress else None,
+        line_numbers=getattr(args, "line_numbers", False),
     )
 
     if not quiet:

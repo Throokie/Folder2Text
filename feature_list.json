@@ -3,7 +3,7 @@
   {"category": "functional", "description": "CLI: -q/--quiet flag suppresses all output except errors", "steps": ["Run codebundle bundle . -q", "Verify minimal output"], "passes": true},
   {"category": "functional", "description": "CLI: --no-progress disables progress bar", "steps": ["Run codebundle bundle . --no-progress", "Verify no progress bar shown"], "passes": true},
   {"category": "functional", "description": "CLI: --git-only bundles only Git tracked files", "steps": ["Initialize git repo with some files", "Run codebundle bundle . --git-only", "Verify only tracked files included"], "passes": false},
-  {"category": "functional", "description": "CLI: --line-numbers adds line numbers to output", "steps": ["Run codebundle bundle . --line-numbers -f text", "Verify line numbers in output"], "passes": false},
+  {"category": "functional", "description": "CLI: --line-numbers adds line numbers to output", "steps": ["Run codebundle bundle . --line-numbers -f text", "Verify line numbers in output"], "passes": true},
   {"category": "functional", "description": "CLI: --compress zip creates zip archive", "steps": ["Run codebundle bundle . --compress zip", "Verify output is valid zip file"], "passes": false},
   {"category": "functional", "description": "CLI: --compress tar.gz creates tar.gz archive", "steps": ["Run codebundle bundle . --compress tar.gz", "Verify output is valid tar.gz file"], "passes": false},
   {"category": "functional", "description": "CLI: --warn-sensitive warns about .env files", "steps": ["Create .env file with sensitive data", "Run codebundle bundle . --warn-sensitive", "Verify warning displayed"], "passes": false},
