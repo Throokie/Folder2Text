@@ -135,7 +135,7 @@ def create_parser() -> argparse.ArgumentParser:
         "-f",
         "--format",
         type=str,
-        choices=["text", "markdown", "json"],
+        choices=["text", "markdown", "json", "html"],
         default="text",
         help="输出格式",
     )
@@ -226,9 +226,9 @@ def cmd_bundle(args: argparse.Namespace) -> int:
     if args.output:
         output_path = args.output
     else:
-        output_path = Path(
-            f"{source_path.name}_bundle.{args.format if args.format != 'markdown' else 'md'}"
-        )
+        ext_map = {"markdown": "md", "html": "html", "json": "json", "text": "txt"}
+        ext = ext_map.get(args.format, args.format)
+        output_path = Path(f"{source_path.name}_bundle.{ext}")
 
     scanner = FileScanner(
         root_path=source_path,

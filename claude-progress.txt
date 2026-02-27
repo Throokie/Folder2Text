@@ -14,21 +14,22 @@
 - Implemented --line-numbers option ✅
 - Implemented --git-only feature ✅
 - Implemented --warn-sensitive security feature ✅
+- Implemented --compress option (zip/tar.gz/tar) ✅
 - Fixed CLI FilterRule dynamic type creation bug
 - Added get_tracked_files() method to GitOperations
 - Added check_sensitive_files() function for security
 
 ### Current State
 - Project is fully functional
-- 6 new features implemented
+- 7 new features implemented
 - All tests passing
 
 ### Next Steps
-1. Implement --compress option (zip/tar.gz output)
-2. Implement HTML output format
-3. Implement file hash (--hash md5/sha256)
+1. Implement HTML output format
+2. Implement file hash (--hash md5/sha256)
+3. Implement config export/import commands
 
 ### Statistics
 - Total test cases: 200
-- Passing: 54 (existing + new features)
-- Failed/Not implemented: 146
+- Passing: 56 (existing + new features)
+- Failed/Not implemented: 144

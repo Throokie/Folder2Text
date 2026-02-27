@@ -202,6 +202,8 @@ class Bundler:
             self._write_markdown(contents, files)
         elif format == "json":
             self._write_json(contents)
+        elif format == "html":
+            self._write_html(contents, files)
         else:
             self._write_text(contents, files)
 
@@ -319,6 +321,35 @@ class Bundler:
 
         with open(self.output_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
+
+    def _write_html(self, contents: List[FileContent], files: List[FileInfo]) -> None:
+        """写入 HTML 格式"""
+        from ..formatters.html_fmt import HtmlFormatter
+
+        formatter = HtmlFormatter(
+            project_name=self.scanner.root_path.name,
+            project_path=str(self.scanner.root_path),
+            total_files=len(contents),
+            total_size=sum(c.file_info.size for c in contents),
+        )
+
+        formatter.set_structure(self.scanner.build_tree(files))
+
+        for content in sorted(contents, key=lambda c: c.file_info.relative_path):
+            from ..formatters.base import FileSection
+
+            section = FileSection(
+                path=content.file_info.relative_path,
+                content=content.content or "",
+                size=content.file_info.size,
+                encoding=content.encoding,
+                line_count=content.line_count,
+                error=content.error or "",
+            )
+            formatter.add_section(section)
+
+        with open(self.output_path, "w", encoding="utf-8") as f:
+            f.write(formatter.render())
 
     @staticmethod
     def _human_size(size: int) -> str:
