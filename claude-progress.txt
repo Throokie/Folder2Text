@@ -11,19 +11,22 @@
 - Implemented --version flag ✅
 - Implemented -q/--quiet flag ✅
 - Implemented --no-progress flag ✅
+- Implemented --line-numbers option ✅
+- Implemented --git-only feature ✅
 - Fixed CLI FilterRule dynamic type creation bug
+- Added get_tracked_files() method to GitOperations
 
 ### Current State
 - Project is fully functional
-- 3 new features implemented
+- 5 new features implemented
 - All tests passing
 
 ### Next Steps
-1. Implement --line-numbers option
-2. Implement --git-only feature
-3. Implement --warn-sensitive for security
+1. Implement --warn-sensitive for security
+2. Implement --compress option
+3. Implement HTML output format
 
 ### Statistics
 - Total test cases: 200
-- Passing: 48 (existing + new features)
-- Failed/Not implemented: 152
+- Passing: 50 (existing + new features)
+- Failed/Not implemented: 150

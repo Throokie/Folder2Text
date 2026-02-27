@@ -5,14 +5,74 @@
 """
 
 import argparse
+import re
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Tuple
 import logging
 
 from ..core.scanner import FileScanner, FilterRule, FilterType
 from ..core.bundler import Bundler
 from ..config.manager import ConfigManager
+
+SENSITIVE_FILE_PATTERNS = [
+    r"\.env$",
+    r"\.env\.",
+    r"credentials",
+    r"secrets?",
+    r"\.pem$",
+    r"\.key$",
+    r"\.p12$",
+    r"\.pfx$",
+    r"id_rsa",
+    r"id_dsa",
+    r"id_ecdsa",
+    r"id_ed25519",
+    r"\.pub$",
+    r"\.jks$",
+    r"\.keystore$",
+    r"\.truststore$",
+    r"password",
+    r"token",
+    r"api[_-]?key",
+    r"private[_-]?key",
+    r"access[_-]?key",
+    r"\.htpasswd$",
+    r"\.netrc$",
+    r"\.pgpass$",
+    r"\.my\.cnf$",
+    r"\.pgpass$",
+]
+
+SENSITIVE_CONTENT_PATTERNS = [
+    r'password\s*=\s*[\'"][^\'"]+[\'"]',
+    r'api[_-]?key\s*=\s*[\'"][^\'"]+[\'"]',
+    r'secret[_-]?key\s*=\s*[\'"][^\'"]+[\'"]',
+    r'token\s*=\s*[\'"][^\'"]+[\'"]',
+    r'private[_-]?key\s*=\s*[\'"][^\'"]+[\'"]',
+    r"-----BEGIN.*PRIVATE KEY-----",
+    r"-----BEGIN.*CERTIFICATE-----",
+]
+
+
+def check_sensitive_files(files: List) -> Tuple[List[str], List[str]]:
+    """
+    检查敏感文件
+
+    Returns:
+        (敏感文件名列表, 敏感内容文件列表)
+    """
+    sensitive_files = []
+    sensitive_content = []
+
+    for f in files:
+        filename_lower = f.relative_path.lower()
+        for pattern in SENSITIVE_FILE_PATTERNS:
+            if re.search(pattern, filename_lower, re.IGNORECASE):
+                sensitive_files.append(f.relative_path)
+                break
+
+    return sensitive_files, sensitive_content
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -104,6 +164,11 @@ def create_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="只打包 Git 跟踪的文件",
     )
+    bundle_parser.add_argument(
+        "--warn-sensitive",
+        action="store_true",
+        help="警告敏感文件（如 .env、密钥文件等）",
+    )
 
     # profiles 命令
     profiles_parser = subparsers.add_parser("profiles", help="列出所有配置档案")
@@ -192,6 +257,19 @@ def cmd_bundle(args: argparse.Namespace) -> int:
             if not quiet:
                 print("⚠️ 没有找到 Git 跟踪的文件")
 
+    warn_sensitive = getattr(args, "warn_sensitive", False)
+    files = scanner.scan_all()
+    if tracked_files:
+        files = [f for f in files if f.relative_path in tracked_files]
+
+    if warn_sensitive and files:
+        sensitive_files, _ = check_sensitive_files(files)
+        if sensitive_files and not quiet:
+            print("\n⚠️  检测到敏感文件:")
+            for f in sensitive_files:
+                print(f"  - {f}")
+            print("  建议检查这些文件是否包含敏感信息\n")
+
     if args.dry_run:
         if not quiet:
             print(f"\n📁 扫描目录: {source_path}")
@@ -202,9 +280,6 @@ def cmd_bundle(args: argparse.Namespace) -> int:
             print("\n将要处理的文件:")
             print("-" * 60)
 
-            files = scanner.scan_all()
-            if tracked_files:
-                files = [f for f in files if f.relative_path in tracked_files]
             for f in sorted(files, key=lambda x: x.relative_path):
                 size_kb = f.size / 1024
                 print(f"  {f.relative_path} ({size_kb:.1f} KB)")
