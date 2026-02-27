@@ -55,9 +55,19 @@ class Bundler:
         show_progress: bool = True,
         progress_callback: Optional[Callable[[int, int, str], None]] = None,
         line_numbers: bool = False,
+        file_filter: Optional[Callable[[FileInfo], bool]] = None,
     ):
         """
         初始化打包器
+
+        Args:
+            scanner: 文件扫描器
+            output_path: 输出路径
+            max_workers: 最大并行工作数
+            show_progress: 是否显示进度
+            progress_callback: 进度回调函数
+            line_numbers: 是否添加行号
+            file_filter: 文件过滤函数，返回 True 表示包含该文件
         """
         self.scanner = scanner
         self.output_path = Path(output_path)
@@ -65,6 +75,7 @@ class Bundler:
         self.show_progress = show_progress
         self.progress_callback = progress_callback
         self.line_numbers = line_numbers
+        self.file_filter = file_filter
         self.encoder = EncodingDetector()
         self.formatter: Optional[Callable] = None
 
@@ -128,24 +139,24 @@ class Bundler:
         warnings = []
 
         try:
-            # 1. 扫描文件
             logger.info(f"开始扫描目录: {self.scanner.root_path}")
             files = self.scanner.scan_all()
+
+            if self.file_filter:
+                files = [f for f in files if self.file_filter(f)]
+                logger.info(f"过滤后剩余 {len(files)} 个文件")
 
             if not files:
                 warnings.append("没有找到符合条件的文件")
 
             logger.info(f"找到 {len(files)} 个文件")
 
-            # 2. 读取文件内容
             logger.info("开始读取文件内容...")
             contents = self._read_files_parallel(files)
 
-            # 3. 生成输出
             logger.info(f"生成输出文件: {self.output_path}")
             self._write_output(contents, format, files)
 
-            # 4. 统计信息
             total_size = sum(f.size for f in files)
             processing_time = time.time() - start_time
 

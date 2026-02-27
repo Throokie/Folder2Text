@@ -99,6 +99,11 @@ def create_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="在输出中添加行号",
     )
+    bundle_parser.add_argument(
+        "--git-only",
+        action="store_true",
+        help="只打包 Git 跟踪的文件",
+    )
 
     # profiles 命令
     profiles_parser = subparsers.add_parser("profiles", help="列出所有配置档案")
@@ -171,22 +176,44 @@ def cmd_bundle(args: argparse.Namespace) -> int:
         for ext in args.exclude_ext:
             scanner.add_exclude_extension(ext)
 
+    git_only = getattr(args, "git_only", False)
+    tracked_files = None
+
+    if git_only:
+        from ..utils.git_ops import GitOperations
+
+        git_ops = GitOperations(source_path)
+        if not git_ops.is_git_repo():
+            if not quiet:
+                print("❌ --git-only 需要在 Git 仓库中使用")
+            return 1
+        tracked_files = set(git_ops.get_tracked_files())
+        if not tracked_files:
+            if not quiet:
+                print("⚠️ 没有找到 Git 跟踪的文件")
+
     if args.dry_run:
         if not quiet:
             print(f"\n📁 扫描目录: {source_path}")
             print(f"📋 配置档案: {profile.name}")
+            if git_only:
+                print("🔗 模式: 只包含 Git 跟踪的文件")
             print(f"📏 最大文件大小: {args.max_size}")
             print("\n将要处理的文件:")
             print("-" * 60)
 
             files = scanner.scan_all()
+            if tracked_files:
+                files = [f for f in files if f.relative_path in tracked_files]
             for f in sorted(files, key=lambda x: x.relative_path):
                 size_kb = f.size / 1024
                 print(f"  {f.relative_path} ({size_kb:.1f} KB)")
 
-            stats = scanner.get_statistics()
+            total_size = sum(f.size for f in files)
             print("-" * 60)
-            print(f"总计: {stats['total_files']} 个文件, {stats['total_size_human']}")
+            print(
+                f"总计: {len(files)} 个文件, {FileScanner._human_readable_size(total_size)}"
+            )
         return 0
 
     show_progress = not (quiet or no_progress or args.verbose)
@@ -203,12 +230,17 @@ def cmd_bundle(args: argparse.Namespace) -> int:
                 flush=True,
             )
 
+    file_filter = None
+    if tracked_files:
+        file_filter = lambda f: f.relative_path in tracked_files
+
     bundler = Bundler(
         scanner=scanner,
         output_path=output_path,
         show_progress=show_progress,
         progress_callback=progress_callback if show_progress else None,
         line_numbers=getattr(args, "line_numbers", False),
+        file_filter=file_filter,
     )
 
     if not quiet:

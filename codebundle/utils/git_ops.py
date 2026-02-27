@@ -15,171 +15,167 @@ logger = logging.getLogger(__name__)
 
 class GitOperations:
     """Git 操作工具类"""
-    
+
     def __init__(self, repo_path: Path):
         """
         初始化 Git 操作工具
-        
+
         Args:
             repo_path: Git 仓库路径
         """
         self.repo_path = Path(repo_path).resolve()
-        self.git_dir = self.repo_path / '.git'
-    
+        self.git_dir = self.repo_path / ".git"
+
     def is_git_repo(self) -> bool:
         """检查是否为 Git 仓库"""
         return self.git_dir.exists()
-    
+
     def init_repo(self) -> bool:
         """初始化 Git 仓库"""
         if self.is_git_repo():
             logger.info(f"Git 仓库已存在: {self.repo_path}")
             return True
-        
+
         try:
             result = subprocess.run(
-                ['git', 'init'],
+                ["git", "init"],
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             logger.info(f"Git 仓库初始化成功: {self.repo_path}")
             return True
         except subprocess.CalledProcessError as e:
             logger.error(f"Git 初始化失败: {e.stderr}")
             return False
-    
+
     def get_status(self) -> Tuple[bool, str]:
         """
         获取仓库状态
-        
+
         Returns:
             (是否有变更, 状态输出)
         """
         try:
             result = subprocess.run(
-                ['git', 'status', '--porcelain'],
+                ["git", "status", "--porcelain"],
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             has_changes = bool(result.stdout.strip())
             return (has_changes, result.stdout)
         except subprocess.CalledProcessError as e:
             logger.error(f"获取状态失败: {e.stderr}")
             return (False, "")
-    
+
     def add_all(self) -> bool:
         """添加所有文件到暂存区"""
         try:
             subprocess.run(
-                ['git', 'add', '.'],
+                ["git", "add", "."],
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             logger.debug("已添加所有文件到暂存区")
             return True
         except subprocess.CalledProcessError as e:
             logger.error(f"git add 失败: {e.stderr}")
             return False
-    
+
     def commit(
-        self, 
+        self,
         message: str,
         author_name: Optional[str] = None,
-        author_email: Optional[str] = None
+        author_email: Optional[str] = None,
     ) -> Tuple[bool, str]:
         """
         提交更改
-        
+
         Args:
             message: 提交信息
             author_name: 作者名称
             author_email: 作者邮箱
-            
+
         Returns:
             (是否成功, 输出信息)
         """
         env = os.environ.copy()
-        
+
         if author_name:
-            env['GIT_AUTHOR_NAME'] = author_name
-            env['GIT_COMMITTER_NAME'] = author_name
+            env["GIT_AUTHOR_NAME"] = author_name
+            env["GIT_COMMITTER_NAME"] = author_name
         if author_email:
-            env['GIT_AUTHOR_EMAIL'] = author_email
-            env['GIT_COMMITTER_EMAIL'] = author_email
-        
+            env["GIT_AUTHOR_EMAIL"] = author_email
+            env["GIT_COMMITTER_EMAIL"] = author_email
+
         try:
             result = subprocess.run(
-                ['git', 'commit', '-m', message],
+                ["git", "commit", "-m", message],
                 cwd=self.repo_path,
                 env=env,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             logger.info(f"提交成功: {message}")
             return (True, result.stdout)
         except subprocess.CalledProcessError as e:
-            if 'nothing to commit' in e.stdout:
+            if "nothing to commit" in e.stdout:
                 return (True, "没有需要提交的更改")
             logger.error(f"提交失败: {e.stderr}")
             return (False, e.stderr)
-    
-    def update_gitignore(
-        self, 
-        rules: List[str],
-        append: bool = True
-    ) -> bool:
+
+    def update_gitignore(self, rules: List[str], append: bool = True) -> bool:
         """
         更新 .gitignore 文件
-        
+
         Args:
             rules: 忽略规则列表
             append: 是否追加模式
         """
-        gitignore_path = self.repo_path / '.gitignore'
-        
+        gitignore_path = self.repo_path / ".gitignore"
+
         existing_rules = set()
         if gitignore_path.exists() and append:
             existing_rules = set(
-                line.strip() 
-                for line in gitignore_path.read_text().splitlines() 
-                if line.strip() and not line.startswith('#')
+                line.strip()
+                for line in gitignore_path.read_text().splitlines()
+                if line.strip() and not line.startswith("#")
             )
-        
+
         all_rules = existing_rules.union(set(rules))
-        
+
         try:
             content = "# Generated by CodeBundle\n\n"
-            content += '\n'.join(sorted(all_rules))
-            gitignore_path.write_text(content + '\n', encoding='utf-8')
+            content += "\n".join(sorted(all_rules))
+            gitignore_path.write_text(content + "\n", encoding="utf-8")
             logger.debug(f"已更新 .gitignore: {gitignore_path}")
             return True
         except Exception as e:
             logger.error(f"更新 .gitignore 失败: {e}")
             return False
-    
+
     def auto_commit(
         self,
         message: str = "Auto commit by CodeBundle",
         ignore_files: Optional[List[str]] = None,
         author_name: str = "CodeBundle",
-        author_email: str = "codebundle@tool.local"
+        author_email: str = "codebundle@tool.local",
     ) -> Tuple[bool, str]:
         """
         自动提交流程
-        
+
         Args:
             message: 提交信息
             ignore_files: 要忽略的文件列表
             author_name: 作者名称
             author_email: 作者邮箱
-            
+
         Returns:
             (是否成功, 输出信息)
         """
@@ -187,33 +183,30 @@ class GitOperations:
         if not self.is_git_repo():
             if not self.init_repo():
                 return (False, "Git 仓库初始化失败")
-        
+
         # 更新 .gitignore
         if ignore_files:
             self.update_gitignore(ignore_files)
-        
+
         # 添加文件
         if not self.add_all():
             return (False, "添加文件失败")
-        
+
         # 检查状态
         has_changes, _ = self.get_status()
         if not has_changes:
             return (True, "没有需要提交的更改")
-        
+
         # 提交
         return self.commit(message, author_name, author_email)
-    
+
     @staticmethod
     def get_default_ignore_rules() -> List[str]:
         """获取默认的忽略规则"""
         return [
-            # 输出文件
             "*_bundle.txt",
             "*_bundle.md",
             "*_bundle.json",
-            
-            # 常见目录
             "node_modules/",
             ".git/",
             "__pycache__/",
@@ -224,8 +217,6 @@ class GitOperations:
             "target/",
             ".idea/",
             ".vscode/",
-            
-            # 常见文件
             "*.pyc",
             "*.pyo",
             "*.class",
@@ -233,10 +224,49 @@ class GitOperations:
             "*.dll",
             "*.so",
             "*.dylib",
-            
-            # 日志和临时文件
             "*.log",
             "*.tmp",
             ".DS_Store",
             "Thumbs.db",
         ]
+
+    def get_tracked_files(self) -> List[str]:
+        """
+        获取 Git 跟踪的文件列表
+
+        Returns:
+            相对于仓库根目录的文件路径列表
+        """
+        if not self.is_git_repo():
+            return []
+
+        try:
+            result = subprocess.run(
+                ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+                cwd=self.repo_path,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            files = [f for f in result.stdout.strip().split("\n") if f]
+            return files
+        except subprocess.CalledProcessError as e:
+            logger.error(f"获取跟踪文件失败: {e.stderr}")
+            return []
+
+    def is_tracked(self, file_path: Path) -> bool:
+        """
+        检查文件是否被 Git 跟踪
+
+        Args:
+            file_path: 文件路径
+
+        Returns:
+            是否被跟踪
+        """
+        try:
+            rel_path = file_path.relative_to(self.repo_path)
+            tracked = self.get_tracked_files()
+            return str(rel_path) in tracked
+        except ValueError:
+            return False
