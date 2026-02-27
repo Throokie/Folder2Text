@@ -13,7 +13,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# 默认配置文件路径
 DEFAULT_CONFIG_PATH = Path.home() / ".codebundle" / "config.yaml"
 LOCAL_CONFIG_NAME = ".codebundle.yaml"
 
@@ -27,11 +26,11 @@ class ProfileConfig:
     exclude_extensions: List[str] = field(default_factory=list)
     include_folders: List[str] = field(default_factory=list)
     exclude_folders: List[str] = field(default_factory=list)
-    include_patterns: List[str] = field(default_factory=list)  # glob 模式
-    exclude_patterns: List[str] = field(default_factory=list)  # glob 模式
+    include_patterns: List[str] = field(default_factory=list)
+    exclude_patterns: List[str] = field(default_factory=list)
     max_file_size: str = "10MB"
     output_format: str = "text"
-    inherit: Optional[str] = None  # 继承自哪个配置
+    inherit: Optional[str] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
@@ -46,7 +45,6 @@ class ProfileConfig:
 class ConfigManager:
     """配置管理器"""
     
-    # 内置预设配置
     BUILTIN_PRESETS = {
         "通用/Web开发": ProfileConfig(
             name="通用/Web开发",
@@ -153,6 +151,26 @@ class ConfigManager:
             max_file_size="5MB"
         ),
         
+        "配置文件": ProfileConfig(
+            name="配置文件",
+            description="适用于配置文件收集，包含各种配置格式",
+            include_extensions=[
+                ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf",
+                ".config", ".xml", ".properties", ".env", ".env.example",
+                ".editorconfig", ".gitignore", ".dockerignore", ".eslintrc",
+                ".prettierrc", ".babelrc", ".md", ".txt", ".sh", ".bash", ".zsh"
+            ],
+            exclude_extensions=[
+                ".png", ".jpg", ".jpeg", ".gif", ".ico", ".svg", ".webp",
+                ".exe", ".dll", ".so", ".zip"
+            ],
+            exclude_folders=[
+                "node_modules", ".git", "__pycache__", "build", "dist",
+                "venv", ".venv", "target", ".idea", ".vscode"
+            ],
+            max_file_size="1MB"
+        ),
+        
         "最小化": ProfileConfig(
             name="最小化",
             description="只包含核心代码文件",
@@ -185,22 +203,15 @@ class ConfigManager:
     }
     
     def __init__(self, config_path: Optional[Path] = None):
-        """
-        初始化配置管理器
-        
-        Args:
-            config_path: 配置文件路径，默认为 ~/.codebundle/config.yaml
-        """
+        """初始化配置管理器"""
         self.config_path = config_path or DEFAULT_CONFIG_PATH
         self.profiles: Dict[str, ProfileConfig] = {}
         self._load_config()
     
     def _load_config(self) -> None:
         """加载配置文件"""
-        # 加载内置预设
         self.profiles = {k: v for k, v in self.BUILTIN_PRESETS.items()}
         
-        # 加载用户配置
         if self.config_path.exists():
             try:
                 self._load_from_file(self.config_path)
@@ -208,7 +219,6 @@ class ConfigManager:
             except Exception as e:
                 logger.warning(f"加载配置文件失败: {e}")
         
-        # 加载本地配置（项目目录下的 .codebundle.yaml）
         local_config = Path.cwd() / LOCAL_CONFIG_NAME
         if local_config.exists():
             try:
@@ -226,19 +236,16 @@ class ConfigManager:
                 import yaml
                 data = yaml.safe_load(content) or {}
             except ImportError:
-                # 如果没有 yaml 模块，尝试解析 JSON 格式
                 import json
                 data = json.loads(content)
         else:
             import json
             data = json.loads(content)
         
-        # 加载配置档案
         profiles = data.get('profiles', {})
         for name, profile_data in profiles.items():
             profile = ProfileConfig.from_dict(name, profile_data)
             
-            # 处理继承
             if profile.inherit and profile.inherit in self.profiles:
                 profile = self._merge_profiles(self.profiles[profile.inherit], profile)
             
@@ -254,12 +261,10 @@ class ConfigManager:
             if key == 'name':
                 merged[key] = override_dict.get(key, base_dict[key])
             elif key in ('include_extensions', 'include_folders', 'include_patterns'):
-                # 合并列表
                 base_list = base_dict.get(key, [])
                 override_list = override_dict.get(key, [])
                 merged[key] = list(set(base_list + override_list))
             elif key in ('exclude_extensions', 'exclude_folders', 'exclude_patterns'):
-                # 合并列表
                 base_list = base_dict.get(key, [])
                 override_list = override_dict.get(key, [])
                 merged[key] = list(set(base_list + override_list))
@@ -297,7 +302,6 @@ class ConfigManager:
         save_path = path or self.config_path
         save_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # 只保存非内置配置
         custom_profiles = {
             name: profile.to_dict()
             for name, profile in self.profiles.items()
@@ -320,20 +324,6 @@ class ConfigManager:
         save_path.write_text(content, encoding='utf-8')
         logger.info(f"配置已保存到: {save_path}")
     
-    def create_local_config(self, profile_name: str) -> Path:
-        """在当前目录创建本地配置文件"""
-        profile = self.get_profile(profile_name)
-        if not profile:
-            raise ValueError(f"配置档案不存在: {profile_name}")
-        
-        local_path = Path.cwd() / LOCAL_CONFIG_NAME
-        data = {'profiles': {profile_name: profile.to_dict()}}
-        
-        import json
-        local_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding='utf-8')
-        
-        return local_path
-    
     @staticmethod
     def parse_size(size_str: str) -> int:
         """解析大小字符串为字节数"""
@@ -355,4 +345,4 @@ class ConfigManager:
         try:
             return int(size_str)
         except ValueError:
-            return 10 * 1024 * 1024  # 默认 10MB
+            return 10 * 1024 * 1024

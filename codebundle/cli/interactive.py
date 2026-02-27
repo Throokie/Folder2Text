@@ -12,7 +12,7 @@ import shutil
 
 from ..core.scanner import FileScanner
 from ..core.bundler import Bundler
-from ..config.manager import ConfigManager
+from ..config.manager import ConfigManager, ProfileConfig
 
 
 class InteractiveMode:
@@ -33,11 +33,7 @@ class InteractiveMode:
             elif choice == '2':
                 self._bundle_zip()
             elif choice == '3':
-                self._scan_directory()
-            elif choice == '4':
                 self._show_profiles()
-            elif choice == '5':
-                self._custom_bundle()
             elif choice in ('0', 'q', 'quit', 'exit'):
                 print("\n👋 再见!")
                 return 0
@@ -55,9 +51,7 @@ class InteractiveMode:
         print("  │                                                 │")
         print("  │   [1] 📁 打包文件夹          [2] 📦 打包 ZIP     │")
         print("  │                                                 │")
-        print("  │   [3] 🔍 扫描目录统计        [4] 📋 查看配置     │")
-        print("  │                                                 │")
-        print("  │   [5] ⚙️  自定义打包                             │")
+        print("  │   [3] 📋 查看配置档案                           │")
         print("  │                                                 │")
         print("  │   [0] 🚪 退出                                   │")
         print("  │                                                 │")
@@ -76,7 +70,6 @@ class InteractiveMode:
             print(f"📂 当前位置: {current}")
             print("-" * 60)
             
-            # 获取子目录
             try:
                 items = list(current.iterdir())
                 dirs = sorted([d for d in items if d.is_dir() and not d.name.startswith('.')])
@@ -90,7 +83,6 @@ class InteractiveMode:
             print("[..] ⬆️  上级目录")
             print("-" * 40)
             
-            # 显示子目录
             for i, d in enumerate(dirs[:20], 2):
                 print(f"[{i}] 📁 {d.name}")
             
@@ -122,39 +114,106 @@ class InteractiveMode:
                     pass
     
     def _select_profile(self) -> Optional[str]:
-        """选择配置档案"""
+        """选择配置档案（显示详细信息）"""
         profiles = self.config_manager.list_profiles()
         
-        print("\n📋 选择配置档案:")
-        print("-" * 60)
+        while True:
+            print("\n" + "=" * 60)
+            print("📋 选择配置档案")
+            print("=" * 60)
+            
+            for i, name in enumerate(profiles, 1):
+                profile = self.config_manager.get_profile(name)
+                builtin = " (内置)" if name in self.config_manager.BUILTIN_PRESETS else ""
+                print(f"\n  [{i}] {name}{builtin}")
+                if profile:
+                    if profile.description:
+                        print(f"      📝 {profile.description}")
+                    # 显示包含的扩展名
+                    if profile.include_extensions:
+                        exts = sorted(profile.include_extensions)[:10]
+                        more = f" ... 共{len(profile.include_extensions)}个" if len(profile.include_extensions) > 10 else ""
+                        print(f"      ✅ 包含: {', '.join(exts)}{more}")
+                    # 显示排除的扩展名
+                    if profile.exclude_extensions:
+                        exts = sorted(profile.exclude_extensions)[:6]
+                        more = f" ... 共{len(profile.exclude_extensions)}个" if len(profile.exclude_extensions) > 6 else ""
+                        print(f"      ❌ 排除: {', '.join(exts)}{more}")
+            
+            print("\n" + "-" * 60)
+            print("💡 输入序号选择 | 输入 'd <序号>' 查看详情 | 回车默认选第1个")
+            
+            choice = input("\n选择: ").strip().lower()
+            
+            if choice.startswith('d '):
+                try:
+                    idx = int(choice[2:]) - 1
+                    if 0 <= idx < len(profiles):
+                        self._show_profile_detail(profiles[idx])
+                except ValueError:
+                    pass
+                continue
+            
+            try:
+                if not choice:
+                    idx = 0
+                else:
+                    idx = int(choice) - 1
+                
+                if 0 <= idx < len(profiles):
+                    return profiles[idx]
+            except ValueError:
+                for name in profiles:
+                    if choice in name.lower():
+                        return name
+            
+            print("❌ 无效选择")
+    
+    def _show_profile_detail(self, profile_name: str) -> None:
+        """显示配置档案详情"""
+        profile = self.config_manager.get_profile(profile_name)
+        if not profile:
+            return
         
-        for i, name in enumerate(profiles, 1):
-            profile = self.config_manager.get_profile(name)
-            builtin = " (内置)" if name in self.config_manager.BUILTIN_PRESETS else ""
-            desc = f" - {profile.description}" if profile and profile.description else ""
-            print(f"  [{i}] {name}{builtin}{desc}")
+        print("\n" + "=" * 60)
+        print(f"📋 配置档案: {profile_name}")
+        print("=" * 60)
         
-        print("-" * 60)
+        if profile.description:
+            print(f"\n📝 描述: {profile.description}")
         
-        choice = input(f"选择 (1-{len(profiles)}, 默认 1): ").strip()
+        print(f"\n✅ 包含扩展名 ({len(profile.include_extensions)}):")
+        if profile.include_extensions:
+            exts = sorted(profile.include_extensions)
+            for i in range(0, len(exts), 10):
+                print(f"   {', '.join(exts[i:i+10])}")
+        else:
+            print("   (全部)")
         
-        try:
-            idx = int(choice) - 1 if choice else 0
-            if 0 <= idx < len(profiles):
-                return profiles[idx]
-        except ValueError:
-            pass
+        print(f"\n❌ 排除扩展名 ({len(profile.exclude_extensions)}):")
+        if profile.exclude_extensions:
+            exts = sorted(profile.exclude_extensions)
+            for i in range(0, len(exts), 10):
+                print(f"   {', '.join(exts[i:i+10])}")
+        else:
+            print("   (无)")
         
-        return profiles[0] if profiles else None
+        print(f"\n📁 排除目录 ({len(profile.exclude_folders)}):")
+        for folder in sorted(profile.exclude_folders):
+            print(f"   - {folder}")
+        
+        print(f"\n📏 最大文件大小: {profile.max_file_size}")
+        
+        input("\n按回车继续...")
     
     def _select_format(self) -> str:
         """选择输出格式"""
         formats = ['text', 'markdown', 'json']
         
         print("\n📄 选择输出格式:")
-        print("  [1] 纯文本 (text)")
-        print("  [2] Markdown (markdown)")
-        print("  [3] JSON (json)")
+        print("  [1] 纯文本 - 简单直接")
+        print("  [2] Markdown (markdown) - 带语法高亮，适合阅读")
+        print("  [3] JSON (json) - 结构化数据，便于程序处理")
         
         choice = input("选择 (1-3, 默认 1): ").strip()
         
@@ -167,17 +226,145 @@ class InteractiveMode:
         
         return 'text'
     
-    def _bundle_folder(self) -> None:
-        """打包文件夹"""
-        print("\n📁 打包文件夹模式")
+    def _adjust_extensions(self, profile: ProfileConfig) -> ProfileConfig:
+        """调整扩展名配置"""
+        include_exts = list(profile.include_extensions)
+        exclude_exts = list(profile.exclude_extensions)
+        
+        while True:
+            print("\n" + "-" * 60)
+            print("⚙️  扩展名调整")
+            print("-" * 60)
+            print(f"\n✅ 当前包含扩展名 ({len(include_exts)}):")
+            if include_exts:
+                exts = sorted(include_exts)
+                for i in range(0, len(exts), 10):
+                    print(f"   {', '.join(exts[i:i+10])}")
+            else:
+                print("   (全部)")
+            
+            print(f"\n❌ 当前排除扩展名 ({len(exclude_exts)}):")
+            if exclude_exts:
+                exts = sorted(exclude_exts)
+                for i in range(0, len(exts), 10):
+                    print(f"   {', '.join(exts[i:i+10])}")
+            else:
+                print("   (无)")
+            
+            print("\n[1] ➕ 添加包含扩展名")
+            print("[2] ➖ 移除包含扩展名")
+            print("[3] ➕ 添加排除扩展名")
+            print("[4] ➖ 移除排除扩展名")
+            print("[0] ✅ 完成调整")
+            
+            choice = input("\n选择: ").strip()
+            
+            if choice == '1':
+                exts = input("输入要添加的扩展名 (如 .py .js .ts): ").strip()
+                for ext in exts.split():
+                    if not ext.startswith('.'):
+                        ext = '.' + ext
+                    if ext not in include_exts:
+                        include_exts.append(ext)
+                print(f"✅ 已添加")
+            
+            elif choice == '2':
+                exts = input("输入要移除的扩展名 (如 .py .js): ").strip()
+                for ext in exts.split():
+                    if not ext.startswith('.'):
+                        ext = '.' + ext
+                    if ext in include_exts:
+                        include_exts.remove(ext)
+                print(f"✅ 已移除")
+            
+            elif choice == '3':
+                exts = input("输入要排除的扩展名 (如 .min.js .bak): ").strip()
+                for ext in exts.split():
+                    if not ext.startswith('.'):
+                        ext = '.' + ext
+                    if ext not in exclude_exts:
+                        exclude_exts.append(ext)
+                print(f"✅ 已添加排除")
+            
+            elif choice == '4':
+                exts = input("输入要移除排除的扩展名: ").strip()
+                for ext in exts.split():
+                    if not ext.startswith('.'):
+                        ext = '.' + ext
+                    if ext in exclude_exts:
+                        exclude_exts.remove(ext)
+                print(f"✅ 已移除排除")
+            
+            elif choice == '0':
+                break
+        
+        return ProfileConfig(
+            name=profile.name + " (已调整)",
+            description=profile.description,
+            include_extensions=include_exts,
+            exclude_extensions=exclude_exts,
+            include_folders=profile.include_folders,
+            exclude_folders=profile.exclude_folders,
+            max_file_size=profile.max_file_size,
+        )
+    
+    def _show_scan_preview(self, scanner: FileScanner) -> bool:
+        """显示扫描预览，返回是否继续"""
+        print("\n🔍 正在扫描目录...")
+        
+        stats = scanner.get_statistics()
+        
+        print("\n" + "=" * 60)
+        print("📊 扫描结果预览")
         print("=" * 60)
         
-        # 选择目录
+        print(f"\n  📁 目录: {stats['root_path']}")
+        print(f"  📄 文件数: {stats['total_files']}")
+        print(f"  📦 总大小: {stats['total_size_human']}")
+        
+        if stats['extensions']:
+            print(f"\n  📊 扩展名分布:")
+            for ext, count in list(stats['extensions'].items())[:15]:
+                bar = '█' * min(count, 30)
+                print(f"    {ext or '(无扩展名)':<12} {count:>4} {bar}")
+        
+        if stats['total_files'] == 0:
+            print("\n⚠️  没有找到符合条件的文件！")
+            return False
+        
+        # 询问是否查看详细文件列表
+        print("\n" + "-" * 60)
+        choice = input("是否查看详细文件列表? (y/N): ").strip().lower()
+        
+        if choice == 'y':
+            print("\n📄 文件列表:")
+            print("-" * 60)
+            files = sorted(stats['files'], key=lambda x: x.relative_path)
+            for f in files:
+                size_kb = f.size / 1024
+                print(f"  {f.relative_path} ({size_kb:.1f} KB)")
+            print("-" * 60)
+            print(f"  共 {len(files)} 个文件")
+        
+        # 确认是否继续
+        print("\n" + "-" * 60)
+        choice = input("确认打包这些文件? (Y/n): ").strip().lower()
+        
+        return choice != 'n'
+    
+    def _bundle_folder(self) -> None:
+        """打包文件夹（优化后的流程）"""
+        print("\n📁 打包文件夹")
+        print("=" * 60)
+        
+        # Step 1: 选择目录
+        print("\n【步骤 1/5】选择目录")
         target_path = self._navigate_directory()
         if not target_path:
             return
         
-        # 选择配置
+        # Step 2: 选择配置档案
+        print("\n【步骤 2/5】选择配置档案")
         profile_name = self._select_profile()
         if not profile_name:
             print("❌ 没有可用的配置档案")
@@ -185,38 +372,51 @@ class InteractiveMode:
         
         profile = self.config_manager.get_profile(profile_name)
         
-        # 选择格式
+        # Step 3: 调整扩展名
+        print("\n【步骤 3/5】调整扩展名（可选）")
+        choice = input("是否需要调整扩展名配置? (y/N): ").strip().lower()
+        if choice == 'y':
+            profile = self._adjust_extensions(profile)
+        
+        # Step 4: 扫描预览
+        print("\n【步骤 4/5】扫描预览")
+        
+        scanner = FileScanner(
+            root_path=target_path,
+            include_extensions=profile.include_extensions,
+            exclude_extensions=profile.exclude_extensions,
+            include_folders=profile.include_folders,
+            exclude_folders=profile.exclude_folders,
+            max_file_size=self.config_manager.parse_size(profile.max_file_size),
+        )
+        
+        if not self._show_scan_preview(scanner):
+            print("❌ 已取消")
+            input("\n按回车继续...")
+            return
+        
+        # Step 5: 选择格式并执行
+        print("\n【步骤 5/5】选择输出格式")
         output_format = self._select_format()
         
         # 输出文件名
         default_output = f"{target_path.name}_bundle.{output_format if output_format != 'markdown' else 'md'}"
-        output_name = input(f"输出文件名 (默认: {default_output}): ").strip()
+        output_name = input(f"\n输出文件名 (默认: {default_output}): ").strip()
         output_path = Path(output_name) if output_name else Path(default_output)
         
-        # 确认
-        print(f"\n准备打包:")
-        print(f"  📁 目录: {target_path}")
-        print(f"  📋 配置: {profile_name}")
-        print(f"  📄 格式: {output_format}")
-        print(f"  💾 输出: {output_path}")
-        
-        if input("\n确认执行? (y/n): ").strip().lower() != 'y':
-            print("已取消")
-            return
-        
         # 执行打包
-        self._execute_bundle(target_path, output_path, profile, output_format)
+        self._execute_bundle(scanner, output_path, output_format)
     
     def _bundle_zip(self) -> None:
         """打包 ZIP 文件"""
-        print("\n📦 打包 ZIP 文件模式")
+        print("\n📦 打包 ZIP 文件")
         print("=" * 60)
         
-        # 查找 ZIP 文件
         zip_files = list(Path('.').glob('*.zip'))
         
         if not zip_files:
             print("❌ 当前目录没有 ZIP 文件")
+            input("\n按回车继续...")
             return
         
         print("\n可用的 ZIP 文件:")
@@ -234,22 +434,24 @@ class InteractiveMode:
         except ValueError:
             return
         
-        # 选择配置和格式
+        # 选择配置
         profile_name = self._select_profile()
         profile = self.config_manager.get_profile(profile_name)
-        output_format = self._select_format()
+        
+        # 调整扩展名
+        choice = input("\n是否需要调整扩展名配置? (y/N): ").strip().lower()
+        if choice == 'y':
+            profile = self._adjust_extensions(profile)
         
         # 解压并打包
         import zipfile
         import tempfile
-        import shutil
         
         with tempfile.TemporaryDirectory() as temp_dir:
             print(f"\n📂 解压中...")
             with zipfile.ZipFile(zip_path, 'r') as zf:
                 zf.extractall(temp_dir)
             
-            # 找到解压后的根目录
             temp_path = Path(temp_dir)
             extracted = list(temp_path.iterdir())
             if len(extracted) == 1 and extracted[0].is_dir():
@@ -257,56 +459,33 @@ class InteractiveMode:
             else:
                 source_path = temp_path
             
+            scanner = FileScanner(
+                root_path=source_path,
+                include_extensions=profile.include_extensions,
+                exclude_extensions=profile.exclude_extensions,
+                include_folders=profile.include_folders,
+                exclude_folders=profile.exclude_folders,
+                max_file_size=self.config_manager.parse_size(profile.max_file_size),
+            )
+            
+            if not self._show_scan_preview(scanner):
+                print("❌ 已取消")
+                input("\n按回车继续...")
+                return
+            
+            output_format = self._select_format()
             output_path = Path(zip_path.stem + f"_bundle.{output_format if output_format != 'markdown' else 'md'}")
-            self._execute_bundle(source_path, output_path, profile, output_format)
-    
-    def _scan_directory(self) -> None:
-        """扫描目录"""
-        print("\n🔍 扫描目录模式")
-        print("=" * 60)
-        
-        target_path = self._navigate_directory()
-        if not target_path:
-            return
-        
-        profile_name = self._select_profile()
-        profile = self.config_manager.get_profile(profile_name)
-        
-        if not profile:
-            print("❌ 配置不存在")
-            return
-        
-        scanner = FileScanner(
-            root_path=target_path,
-            include_extensions=profile.include_extensions,
-            exclude_extensions=profile.exclude_extensions,
-            include_folders=profile.include_folders,
-            exclude_folders=profile.exclude_folders,
-        )
-        
-        print(f"\n📊 扫描结果:")
-        print("-" * 60)
-        
-        stats = scanner.get_statistics()
-        
-        print(f"\n  📁 目录: {stats['root_path']}")
-        print(f"  📄 文件数: {stats['total_files']}")
-        print(f"  📦 总大小: {stats['total_size_human']}")
-        
-        if stats['extensions']:
-            print(f"\n  📊 扩展名分布:")
-            for ext, count in list(stats['extensions'].items())[:10]:
-                bar = '█' * min(count // 2, 20)
-                print(f"    {ext or '(无)':<12} {count:>4} {bar}")
-        
-        input("\n按回车继续...")
+            
+            self._execute_bundle(scanner, output_path, output_format)
     
     def _show_profiles(self) -> None:
-        """显示配置档案"""
+        """显示配置档案列表"""
         print("\n📋 配置档案列表")
         print("=" * 60)
         
-        for name in self.config_manager.list_profiles():
+        profiles = self.config_manager.list_profiles()
+        
+        for name in profiles:
             profile = self.config_manager.get_profile(name)
             if not profile:
                 continue
@@ -315,75 +494,46 @@ class InteractiveMode:
             print(f"\n📁 {name}{builtin}")
             
             if profile.description:
-                print(f"   {profile.description}")
+                print(f"   📝 {profile.description}")
             
-            print(f"   包含扩展: {len(profile.include_extensions)} 个")
-            print(f"   排除扩展: {len(profile.exclude_extensions)} 个")
-            print(f"   排除目录: {len(profile.exclude_folders)} 个")
+            # 显示扩展名摘要
+            if profile.include_extensions:
+                exts = sorted(profile.include_extensions)[:6]
+                more = f" ... +{len(profile.include_extensions)-6}" if len(profile.include_extensions) > 6 else ""
+                print(f"   ✅ 包含: {', '.join(exts)}{more}")
+            
+            if profile.exclude_extensions:
+                exts = sorted(profile.exclude_extensions)[:4]
+                more = f" ... +{len(profile.exclude_extensions)-4}" if len(profile.exclude_extensions) > 4 else ""
+                print(f"   ❌ 排除: {', '.join(exts)}{more}")
+            
+            print(f"   📁 排除目录: {len(profile.exclude_folders)} 个")
         
-        input("\n按回车继续...")
-    
-    def _custom_bundle(self) -> None:
-        """自定义打包"""
-        print("\n⚙️  自定义打包模式")
-        print("=" * 60)
+        print("\n" + "-" * 60)
+        choice = input("输入序号查看详情，或回车返回: ").strip()
         
-        target_path = self._navigate_directory()
-        if not target_path:
-            return
-        
-        print("\n自定义过滤规则 (留空跳过):")
-        
-        include_ext = input("包含扩展名 (如 .py .js .ts): ").strip()
-        exclude_ext = input("排除扩展名 (如 .png .jpg): ").strip()
-        exclude_dirs = input("排除目录 (如 node_modules .git): ").strip()
-        max_size = input("最大文件大小 (如 5MB): ").strip() or "10MB"
-        
-        output_format = self._select_format()
-        
-        output_name = f"{target_path.name}_custom.{output_format if output_format != 'markdown' else 'md'}"
-        output_path = Path(input(f"输出文件名 (默认: {output_name}): ").strip() or output_name)
-        
-        # 构建配置
-        profile = self.config_manager.get_profile("通用/Web开发")
-        if profile:
-            profile = type('ProfileConfig', (), {
-                'name': '自定义',
-                'include_extensions': include_ext.split() if include_ext else profile.include_extensions,
-                'exclude_extensions': exclude_ext.split() if exclude_ext else profile.exclude_extensions,
-                'include_folders': [],
-                'exclude_folders': exclude_dirs.split() if exclude_dirs else profile.exclude_folders,
-                'max_file_size': max_size,
-            })()
-        
-        self._execute_bundle(target_path, output_path, profile, output_format)
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(profiles):
+                self._show_profile_detail(profiles[idx])
+        except ValueError:
+            pass
     
     def _execute_bundle(
         self, 
-        source_path: Path, 
+        scanner: FileScanner, 
         output_path: Path, 
-        profile, 
         output_format: str
     ) -> None:
         """执行打包操作"""
         print("\n🚀 开始打包...")
         
-        # 进度回调
         def progress_callback(current: int, total: int, filename: str):
             percent = (current / total) * 100 if total > 0 else 0
             bar_length = 30
             filled = int(bar_length * current / total) if total > 0 else 0
             bar = '█' * filled + '░' * (bar_length - filled)
             print(f"\r[{bar}] {percent:.1f}% ({current}/{total}) {filename[:30]:<30}", end='', flush=True)
-        
-        scanner = FileScanner(
-            root_path=source_path,
-            include_extensions=profile.include_extensions,
-            exclude_extensions=profile.exclude_extensions,
-            include_folders=profile.include_folders,
-            exclude_folders=profile.exclude_folders,
-            max_file_size=self.config_manager.parse_size(getattr(profile, 'max_file_size', '10MB')),
-        )
         
         bundler = Bundler(
             scanner=scanner,
@@ -393,7 +543,7 @@ class InteractiveMode:
         
         result = bundler.bundle(format=output_format)
         
-        print()  # 换行
+        print()
         
         if result.success:
             print(f"\n✅ 打包完成!")

@@ -68,7 +68,6 @@ class FilterRule:
                 return False
                 
         elif self.rule_type == FilterType.SIZE:
-            # 格式: ">1MB", "<100KB", "1KB-10MB"
             return self._match_size(file_info.size)
             
         return False
@@ -86,7 +85,6 @@ class FilterRule:
         pattern = self.pattern.strip()
         
         if '-' in pattern:
-            # 范围匹配
             min_size, max_size = pattern.split('-', 1)
             return parse_size(min_size) <= size <= parse_size(max_size)
         elif pattern.startswith('>'):
@@ -112,24 +110,13 @@ class FileScanner:
     ):
         """
         初始化文件扫描器
-        
-        Args:
-            root_path: 根目录路径
-            include_extensions: 包含的扩展名列表
-            exclude_extensions: 排除的扩展名列表
-            include_folders: 包含的文件夹列表（白名单）
-            exclude_folders: 排除的文件夹列表（黑名单）
-            max_file_size: 最大文件大小（字节）
-            follow_symlinks: 是否跟随符号链接
         """
         self.root_path = Path(root_path).resolve()
         self.follow_symlinks = follow_symlinks
-        self.max_file_size = max_file_size or 10 * 1024 * 1024  # 默认10MB
+        self.max_file_size = max_file_size or 10 * 1024 * 1024
         
-        # 规则列表
         self.filter_rules: List[FilterRule] = []
         
-        # 添加扩展名规则
         if include_extensions:
             for ext in include_extensions:
                 self.add_rule(FilterRule(FilterType.EXTENSION, ext, is_include=True, priority=10))
@@ -138,16 +125,27 @@ class FileScanner:
             for ext in exclude_extensions:
                 self.add_rule(FilterRule(FilterType.EXTENSION, ext, is_include=False, priority=20))
         
-        # 文件夹规则
         self.include_folders = set(include_folders or [])
         self.exclude_folders = set(exclude_folders or [])
-        
-        # 自定义过滤器
         self.custom_filters: List[Callable[[FileInfo], bool]] = []
     
     def add_rule(self, rule: FilterRule) -> 'FileScanner':
         """添加过滤规则"""
         self.filter_rules.append(rule)
+        return self
+    
+    def add_include_extension(self, ext: str) -> 'FileScanner':
+        """添加包含扩展名"""
+        if not ext.startswith('.'):
+            ext = '.' + ext
+        self.add_rule(FilterRule(FilterType.EXTENSION, ext, is_include=True, priority=25))
+        return self
+    
+    def add_exclude_extension(self, ext: str) -> 'FileScanner':
+        """添加排除扩展名"""
+        if not ext.startswith('.'):
+            ext = '.' + ext
+        self.add_rule(FilterRule(FilterType.EXTENSION, ext, is_include=False, priority=30))
         return self
     
     def add_glob_include(self, pattern: str, priority: int = 5) -> 'FileScanner':
@@ -184,17 +182,14 @@ class FileScanner:
         rel_path = folder_path.relative_to(self.root_path)
         rel_path_str = str(rel_path).replace('\\', '/')
         
-        # 检查黑名单
         for excluded in self.exclude_folders:
             if rel_path_str == excluded or rel_path_str.startswith(excluded + '/'):
                 return False
         
-        # 如果有白名单，检查是否在白名单中
         if self.include_folders:
             for included in self.include_folders:
                 if rel_path_str == included or rel_path_str.startswith(included + '/'):
                     return True
-                # 或者是白名单文件夹的父目录
                 if included.startswith(rel_path_str + '/'):
                     return True
             return False
@@ -202,19 +197,11 @@ class FileScanner:
         return True
     
     def _should_include_file(self, file_info: FileInfo) -> Tuple[bool, str]:
-        """
-        判断是否应该包含此文件
-        
-        Returns:
-            (是否包含, 原因) 元组
-        """
-        # 检查文件大小
+        """判断是否应该包含此文件"""
         if file_info.size > self.max_file_size:
             return (False, f"文件过大 ({file_info.size} > {self.max_file_size})")
         
-        # 按优先级排序规则
         sorted_rules = sorted(self.filter_rules, key=lambda r: -r.priority)
-        
         has_include_rule = any(r.is_include for r in self.filter_rules)
         matched_include = False
         
@@ -225,11 +212,9 @@ class FileScanner:
                 else:
                     return (False, f"被排除规则匹配: {rule.pattern}")
         
-        # 如果有包含规则但未匹配任何包含规则
         if has_include_rule and not matched_include:
             return (False, "未匹配任何包含规则")
         
-        # 检查自定义过滤器
         for filter_func, is_include in self.custom_filters:
             try:
                 if filter_func(file_info):
@@ -243,12 +228,7 @@ class FileScanner:
         return (True, "通过所有过滤规则")
     
     def scan(self) -> Iterator[FileInfo]:
-        """
-        扫描目录，生成文件信息
-        
-        Yields:
-            FileInfo 对象
-        """
+        """扫描目录，生成文件信息"""
         if not self.root_path.exists():
             raise FileNotFoundError(f"目录不存在: {self.root_path}")
         
@@ -256,7 +236,6 @@ class FileScanner:
             raise NotADirectoryError(f"不是目录: {self.root_path}")
         
         for root, dirs, files in self.root_path.walk(follow_symlinks=self.follow_symlinks):
-            # 过滤目录
             dirs[:] = [d for d in dirs if self._should_include_folder(root / d)]
             
             for filename in files:
@@ -304,6 +283,7 @@ class FileScanner:
             'total_size_human': self._human_readable_size(total_size),
             'extensions': dict(sorted(extensions.items(), key=lambda x: -x[1])),
             'root_path': str(self.root_path),
+            'files': files,
         }
     
     @staticmethod
@@ -317,37 +297,51 @@ class FileScanner:
     
     def build_tree(self, files: Optional[List[FileInfo]] = None) -> str:
         """
-        构建目录树字符串
-        
-        Args:
-            files: 文件列表，如果为 None 则自动扫描
-            
-        Returns:
-            目录树字符串
+        构建目录树字符串 - 修复版，正确显示目录层级
         """
         if files is None:
             files = self.scan_all()
         
+        if not files:
+            return f"{self.root_path.name}/\n  (空)"
+        
         # 按路径排序
         files = sorted(files, key=lambda f: f.relative_path)
         
-        lines = [f"{self.root_path.name}/"]
-        
-        # 构建树结构
-        for i, file_info in enumerate(files):
-            parts = file_info.relative_path.split('/')
-            is_last = (i == len(files) - 1)
-            
-            for j, part in enumerate(parts[:-1]):
-                prefix = "    " if j > 0 else ""
-                if j == len(parts) - 2:
-                    connector = "└── " if is_last else "├── "
+        # 构建树结构 - 使用嵌套字典
+        tree_dict = {}
+        for f in files:
+            parts = f.relative_path.split('/')
+            current = tree_dict
+            for i, part in enumerate(parts):
+                if i == len(parts) - 1:
+                    # 文件 - 标记为 FileInfo 对象
+                    current[part] = f
                 else:
-                    connector = "│   "
-            
-            # 构建缩进
-            indent = "    " * (len(parts) - 1)
-            connector = "└── " if is_last else "├── "
-            lines.append(f"{indent}{connector}{parts[-1]}")
+                    # 目录 - 创建嵌套字典
+                    if part not in current:
+                        current[part] = {}
+                    current = current[part]
         
+        # 递归生成树字符串
+        lines = [f"{self.root_path.name}/"]
+        self._build_tree_recursive(tree_dict, lines, "")
         return '\n'.join(lines)
+    
+    def _build_tree_recursive(self, tree_dict: Dict, lines: List[str], prefix: str) -> None:
+        """递归构建目录树"""
+        # 排序：目录在前，文件在后，同类型按名称排序
+        items = sorted(tree_dict.items(), key=lambda x: (not isinstance(x[1], dict), x[0]))
+        
+        for i, (name, value) in enumerate(items):
+            is_last = (i == len(items) - 1)
+            connector = "└── " if is_last else "├── "
+            
+            if isinstance(value, dict):
+                # 目录
+                lines.append(f"{prefix}{connector}{name}/")
+                new_prefix = prefix + ("    " if is_last else "│   ")
+                self._build_tree_recursive(value, lines, new_prefix)
+            else:
+                # 文件
+                lines.append(f"{prefix}{connector}{name}")

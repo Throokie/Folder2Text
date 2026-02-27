@@ -7,7 +7,7 @@
 
 import time
 from pathlib import Path
-from typing import List, Optional, Dict, Any, Callable, Type
+from typing import List, Optional, Dict, Any, Callable
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
@@ -55,13 +55,6 @@ class Bundler:
     ):
         """
         初始化打包器
-        
-        Args:
-            scanner: 文件扫描器
-            output_path: 输出文件路径
-            max_workers: 最大并行工作线程数
-            show_progress: 是否显示进度
-            progress_callback: 进度回调函数 (current, total, filename)
         """
         self.scanner = scanner
         self.output_path = Path(output_path)
@@ -69,8 +62,6 @@ class Bundler:
         self.show_progress = show_progress
         self.progress_callback = progress_callback
         self.encoder = EncodingDetector()
-        
-        # 输出格式化器
         self.formatter: Optional[Callable] = None
     
     def set_formatter(self, formatter: Callable) -> 'Bundler':
@@ -131,15 +122,7 @@ class Bundler:
         return contents
     
     def bundle(self, format: str = 'text') -> BundleResult:
-        """
-        执行打包操作
-        
-        Args:
-            format: 输出格式 ('text', 'markdown', 'json')
-            
-        Returns:
-            BundleResult 对象
-        """
+        """执行打包操作"""
         start_time = time.time()
         errors = []
         warnings = []
@@ -160,7 +143,7 @@ class Bundler:
             
             # 3. 生成输出
             logger.info(f"生成输出文件: {self.output_path}")
-            self._write_output(contents, format)
+            self._write_output(contents, format, files)
             
             # 4. 统计信息
             total_size = sum(f.size for f in files)
@@ -198,19 +181,18 @@ class Bundler:
                 errors=[str(e)]
             )
     
-    def _write_output(self, contents: List[FileContent], format: str) -> None:
+    def _write_output(self, contents: List[FileContent], format: str, files: List[FileInfo]) -> None:
         """写入输出文件"""
-        # 确保输出目录存在
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
         
         if format == 'markdown' or format == 'md':
-            self._write_markdown(contents)
+            self._write_markdown(contents, files)
         elif format == 'json':
             self._write_json(contents)
         else:
-            self._write_text(contents)
+            self._write_text(contents, files)
     
-    def _write_text(self, contents: List[FileContent]) -> None:
+    def _write_text(self, contents: List[FileContent], files: List[FileInfo]) -> None:
         """写入纯文本格式"""
         with open(self.output_path, 'w', encoding='utf-8') as f:
             # 头部信息
@@ -224,7 +206,7 @@ class Bundler:
             f.write("=" * 80 + "\n")
             f.write("DIRECTORY STRUCTURE\n")
             f.write("=" * 80 + "\n\n")
-            f.write(self.scanner.build_tree([c.file_info for c in contents if not c.error]))
+            f.write(self.scanner.build_tree(files))
             f.write("\n\n")
             
             # 文件内容
@@ -248,7 +230,7 @@ class Bundler:
                 
                 f.write("\n")
     
-    def _write_markdown(self, contents: List[FileContent]) -> None:
+    def _write_markdown(self, contents: List[FileContent], files: List[FileInfo]) -> None:
         """写入 Markdown 格式"""
         with open(self.output_path, 'w', encoding='utf-8') as f:
             # 标题
@@ -263,23 +245,20 @@ class Bundler:
             # 目录结构
             f.write("## 📁 目录结构\n\n")
             f.write("```\n")
-            f.write(self.scanner.build_tree([c.file_info for c in contents if not c.error]))
+            f.write(self.scanner.build_tree(files))
             f.write("\n```\n\n")
             
             # 文件内容
             f.write("## 📄 文件内容\n\n")
             
             for content in sorted(contents, key=lambda c: c.file_info.relative_path):
-                # 文件标题
                 f.write(f"### `{content.file_info.relative_path}`\n\n")
                 
-                # 文件元信息
                 f.write(f"> 大小: {self._human_size(content.file_info.size)} | ")
                 f.write(f"编码: {content.encoding} | ")
                 f.write(f"行数: {content.line_count if content.content else 'N/A'}\n\n")
                 
                 if content.content:
-                    # 根据文件扩展名选择代码块语言
                     lang = self._get_language(content.file_info.extension)
                     f.write(f"```{lang}\n")
                     f.write(content.content)
@@ -368,6 +347,7 @@ class Bundler:
             '.toml': 'toml',
             '.ini': 'ini',
             '.cfg': 'ini',
+            '.conf': 'ini',
             '.dockerfile': 'dockerfile',
             '.makefile': 'makefile',
         }
