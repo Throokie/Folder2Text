@@ -13,20 +13,22 @@
 - Implemented --no-progress flag ✅
 - Implemented --line-numbers option ✅
 - Implemented --git-only feature ✅
+- Implemented --warn-sensitive security feature ✅
 - Fixed CLI FilterRule dynamic type creation bug
 - Added get_tracked_files() method to GitOperations
+- Added check_sensitive_files() function for security
 
 ### Current State
 - Project is fully functional
-- 5 new features implemented
+- 6 new features implemented
 - All tests passing
 
 ### Next Steps
-1. Implement --warn-sensitive for security
-2. Implement --compress option
-3. Implement HTML output format
+1. Implement --compress option (zip/tar.gz output)
+2. Implement HTML output format
+3. Implement file hash (--hash md5/sha256)
 
 ### Statistics
 - Total test cases: 200
-- Passing: 50 (existing + new features)
-- Failed/Not implemented: 150
+- Passing: 54 (existing + new features)
+- Failed/Not implemented: 146
