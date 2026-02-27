@@ -169,6 +169,12 @@ def create_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="警告敏感文件（如 .env、密钥文件等）",
     )
+    bundle_parser.add_argument(
+        "--compress",
+        type=str,
+        choices=["zip", "tar.gz", "tar"],
+        help="压缩输出文件格式",
+    )
 
     # profiles 命令
     profiles_parser = subparsers.add_parser("profiles", help="列出所有配置档案")
@@ -329,6 +335,37 @@ def cmd_bundle(args: argparse.Namespace) -> int:
         print()
 
     if result.success:
+        compress = getattr(args, "compress", None)
+        if compress:
+            import shutil
+            import tarfile
+
+            original_path = result.output_path
+            if compress == "zip":
+                compressed_path = original_path.with_suffix(".zip")
+                shutil.make_archive(
+                    str(original_path.with_suffix("")),
+                    "zip",
+                    original_path.parent,
+                    original_path.name,
+                )
+            elif compress == "tar.gz":
+                compressed_path = original_path.with_suffix(".tar.gz")
+                with tarfile.open(compressed_path, "w:gz") as tar:
+                    tar.add(original_path, arcname=original_path.name)
+            elif compress == "tar":
+                compressed_path = original_path.with_suffix(".tar")
+                with tarfile.open(compressed_path, "w") as tar:
+                    tar.add(original_path, arcname=original_path.name)
+
+            if original_path.exists():
+                original_path.unlink()
+
+            result.output_path = compressed_path
+            result.total_size = compressed_path.stat().st_size
+            if not quiet:
+                print(f"📦 已压缩为: {compress}")
+
         if not quiet:
             print(f"\n✅ 打包完成!")
             print(f"📄 输出文件: {result.output_path}")
