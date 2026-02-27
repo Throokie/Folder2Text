@@ -1,0 +1,126 @@
+# CodeBundle Pro - 项目规格说明书
+
+## 项目概述
+
+**项目名称**: CodeBundle Pro
+**版本**: 2.0
+**技术栈**: Python 3.8+
+**类型**: 命令行工具 + 库
+
+## 项目描述
+
+CodeBundle Pro 是一个智能项目文件整合工具，将指定文件夹下的文件内容编排成一个结构化文件，支持多种过滤规则、输出格式和编码检测。
+
+## 当前功能
+
+1. **文件扫描** - 支持扩展名、glob、正则、大小等多种过滤规则
+2. **多格式输出** - 支持纯文本、Markdown、JSON 三种格式
+3. **智能编码检测** - 自动检测 UTF-8、GBK、Big5 等编码
+4. **并行处理** - 多线程并行读取文件
+5. **配置管理** - 内置 9 种预设配置，支持自定义
+6. **双模式** - 命令行参数 + 交互式界面
+
+## 改进需求
+
+### 高优先级
+1. CLI 增强：--version、-q/--quiet、--no-progress
+2. Git 集成：--git-only 只打包 Git 跟踪的文件
+3. 安全功能：自动检测并警告敏感文件（.env、credentials）
+4. 行号选项：--line-numbers 在输出中添加行号
+5. 压缩输出：--compress 生成 .zip 或 .tar.gz
+
+### 中优先级
+6. HTML 输出格式：带语法高亮的 HTML
+7. 文件排除模式：--exclude-pattern 按内容排除文件
+8. 配置导出/导入：--export-config、--import-config
+9. 文件哈希：输出中包含文件 MD5/SHA256
+10. 增量模式：--incremental 只处理变更文件
+
+### 低优先级
+11. 单元测试：完整的 pytest 测试套件
+12. 类型注解：完整的类型提示
+13. CI/CD：GitHub Actions 配置
+14. 文档：生成 API 文档
+15. 国际化：多语言支持
+
+## 文件结构
+
+```
+codebundle/
+├── __init__.py          # 包入口
+├── __main__.py          # python -m codebundle
+├── core/                # 核心模块
+│   ├── scanner.py       # 文件扫描器
+│   ├── bundler.py       # 打包器
+│   └── encoder.py       # 编码检测器
+├── formatters/          # 格式化器
+│   ├── base.py          # 基类
+│   ├── text.py          # 纯文本
+│   ├── markdown.py      # Markdown
+│   └── json_fmt.py      # JSON
+├── config/              # 配置管理
+│   └── manager.py       # 配置管理器
+├── cli/                 # 命令行接口
+│   ├── commands.py      # CLI 命令
+│   └── interactive.py   # 交互模式
+└── utils/               # 工具模块
+    ├── git_ops.py       # Git 操作
+    └── progress.py      # 进度显示
+```
+
+## 接口规范
+
+### CLI 命令
+
+```bash
+# 查看版本
+codebundle --version
+
+# 打包（静默模式）
+codebundle bundle . -q
+
+# 只打包 Git 跟踪的文件
+codebundle bundle . --git-only
+
+# 添加行号
+codebundle bundle . --line-numbers
+
+# 压缩输出
+codebundle bundle . --compress zip
+
+# 警告敏感文件
+codebundle bundle . --warn-sensitive
+
+# 导出配置
+codebundle config export my-config.yaml
+```
+
+### Python API
+
+```python
+from codebundle import Bundler, FileScanner, ConfigManager
+
+# Git 集成
+scanner = FileScanner(root_path, git_only=True)
+
+# 行号
+bundler = Bundler(scanner, output_path, line_numbers=True)
+
+# 压缩
+result = bundler.bundle(compress='zip')
+```
+
+## 质量要求
+
+1. 所有新功能必须通过单元测试
+2. 保持向后兼容
+3. 代码覆盖率 > 80%
+4. 类型注解完整
+5. 文档完整
+
+## 交付物
+
+1. 更新的源代码
+2. 单元测试
+3. 更新的 README
+4. CHANGELOG 记录变更
