@@ -1,0 +1,119 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codebundle"
+version = "2.0.0"
+description = "Intelligent project file bundler - combine project files into a single structured output"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+authors = [
+    {name = "CodeBundle Team", email = "codebundle@example.com"}
+]
+maintainers = [
+    {name = "CodeBundle Team", email = "codebundle@example.com"}
+]
+keywords = [
+    "code-bundle",
+    "file-bundler",
+    "project-packager",
+    "code-archiver",
+    "llm-code-context",
+    "ai-code-tools",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Utilities",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-xdist>=3.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.0.0",
+    "ruff>=0.1.0",
+    "pre-commit>=3.0.0",
+]
+
+[project.scripts]
+codebundle = "codebundle.cli.commands:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/codebundle"
+Documentation = "https://github.com/yourusername/codebundle#readme"
+Repository = "https://github.com/yourusername/codebundle.git"
+Issues = "https://github.com/yourusername/codebundle/issues"
+Changelog = "https://github.com/yourusername/codebundle/blob/main/CHANGELOG.md"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["codebundle*"]
+
+[tool.setuptools.package-data]
+codebundle = ["py.typed"]
+
+# Black configuration
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+
+# isort configuration
+[tool.isort]
+profile = "black"
+line_length = 88
+
+# MyPy configuration
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+# Pytest configuration
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = ["-ra", "-q", "--strict-markers"]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["codebundle"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+show_missing = true
+
+# Ruff configuration
+[tool.ruff]
+target-version = "py38"
+line-length = 88
+select = ["E", "W", "F", "I", "B", "C4", "UP"]
+ignore = ["E501", "B008"]
