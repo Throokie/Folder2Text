@@ -55,6 +55,31 @@ codebundle bundle . --quiet
 
 ---
 
+## 使用案例
+
+把一个小型 Python 包打成单文件，便于丢给 LLM：
+
+```bash
+codebundle bundle ./my_package --config python -o /tmp/my_package.txt --git-only
+head -n 40 /tmp/my_package.txt
+```
+
+预期输出结构示意：
+
+```text
+# Bundle: my_package
+# Files: 12
+
+===== my_package/__init__.py =====
+...
+===== my_package/cli.py =====
+...
+```
+
+> 注：以上输出仅为结构示意，实际头部与分隔符格式以本地运行结果为准。`--git-only` 要求目标目录位于 Git 仓库内。
+
+---
+
 ## 📋 命令行选项
 
 ```bash
